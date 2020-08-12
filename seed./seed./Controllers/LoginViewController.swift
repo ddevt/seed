@@ -9,10 +9,9 @@
 import UIKit
 import FirebaseAuth
 import JGProgressHUD
+import FBSDKLoginKit
 
-
-class LoginViewController: UIViewController {
-
+class LoginViewController: UIViewController { 
     //loading button
     private let spinner = JGProgressHUD(style: .dark)
     
@@ -72,6 +71,8 @@ class LoginViewController: UIViewController {
         return button
     }()
     
+    private let fbloginButton = FBLoginButton()
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -82,12 +83,14 @@ class LoginViewController: UIViewController {
         //adds the register button on the top right of the screen
         navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Register", style: .done, target: self, action: #selector(didTapRegister))
         
+        loginButton.addTarget(self, action: #selector(loginButtonTapped), for: .touchUpInside)
         //adds all the view elements to the view itself
         view.addSubview(scrollView)
         scrollView.addSubview(imageView)
         scrollView.addSubview(emailField)
         scrollView.addSubview(passwordField)
         scrollView.addSubview(loginButton)
+        scrollView.addSubview(fbloginButton)
         
     }//EO viewDidLoad
     
@@ -112,7 +115,10 @@ class LoginViewController: UIViewController {
                                    y: passwordField.bottom+10,
                                    width: scrollView.width-60,
                                    height: 52)
-
+        fbloginButton.frame = CGRect(x: 30,
+                                     y: loginButton.bottom+10,
+                                     width: scrollView.width-60,
+                                     height: 52)
     }//EO viewDidLayoutSubviews
     
     //when gister is tapped, change VC to RegisterViewController
@@ -120,5 +126,46 @@ class LoginViewController: UIViewController {
         let vc = RegisterViewController()
         vc.title = "Create Account"
         navigationController?.pushViewController(vc, animated: true)
+    }
+    
+    @objc private func loginButtonTapped(){
+        guard let email = emailField.text,
+            let password = passwordField.text,
+            !email.isEmpty,
+            !password.isEmpty
+            else{
+                alertUserLoginError(message: "Please enter your email and password")
+                return
+        }
+        
+        //Spinner show
+        
+        spinner.show(in:view)
+        FirebaseAuth.Auth.auth().signIn(withEmail: email, password: password, completion: {[weak self] authResult, error in
+            guard let strongSelf = self else {
+                return
+            }
+            DispatchQueue.main.async {
+
+                strongSelf.spinner.dismiss()
+            }
+            
+            guard let result = authResult, error == nil else{
+                print("failed to log in user with email: \(email)")
+                return
+            }
+            
+            let user = result.user
+            print("Log In Successful: \(user)")
+            
+            strongSelf.navigationController?.dismiss(animated: true, completion: nil)
+        })
+        
+    }
+    
+    func alertUserLoginError(message: String){
+        let alert = UIAlertController(title: "Woops", message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title:"Dismiss",style: .cancel,handler: nil))
+        present(alert,animated: true)
     }
 }
